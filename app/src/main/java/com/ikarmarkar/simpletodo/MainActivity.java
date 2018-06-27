@@ -1,5 +1,6 @@
 package com.ikarmarkar.simpletodo;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
@@ -18,6 +19,12 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity {
+
+    // this is a numeric code identifying the edit activity
+    public static final int EDIT_REQUEST_CODE = 20;
+    // keys for passing data between activities
+    public static final String ITEM_TEXT = "itemText";
+    public static final String ITEM_POSITION = "itemPosition";
 
     ArrayList<String> items;
     ArrayAdapter<String> itemsAdapter;
@@ -42,11 +49,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void onAddItem(View v) {
-        // get a reference to the EditText created in the layout
+        // get reference to the EditText created in the layout
         EditText etNewItem = (EditText) findViewById(R.id.etNewItem);
         // get the EditText's content as a String
         String itemText = etNewItem.getText().toString();
-        // add the item to the list via the adapter
+        // add item to the list using the adapter
         itemsAdapter.add(itemText);
         // store the list called updated
         writeItems();
@@ -75,9 +82,43 @@ public class MainActivity extends AppCompatActivity {
                 return true;
             }
         });
+
+        // set the ListView's regular click listener
+        lvItems.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                // first parameter is context, second is class of the activity to launch
+                Intent i = new Intent(MainActivity.this, EditItemActivity.class);
+                // put "extras" into bundle for access in edit activity
+                i.putExtra(ITEM_TEXT, items.get(position));
+                i.putExtra(ITEM_POSITION, position);
+                // brings up edit activity with expectation of a result
+                startActivityForResult(i, EDIT_REQUEST_CODE);
+            }
+        });
     }
 
-    // return the file which stores the data
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        // EDIT_REQUEST_CODE defined with constants
+        if (resultCode == RESULT_OK && requestCode == EDIT_REQUEST_CODE) {
+            // extract updated value of item from result extras
+            String updatedItem = data.getExtras().getString(ITEM_TEXT);
+            // get position of the edited item
+            int position = data.getExtras().getInt(ITEM_POSITION, 0);
+            // update model with new item text at the edited position
+            items.set(position, updatedItem);
+            // notify the adapter that the model has changed
+            itemsAdapter.notifyDataSetChanged();
+            // store the updated items back to disk
+            writeItems();
+            // notify user the operation completed OK
+            Toast.makeText(this, "Item updated", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    // return file which stores the data
     private File getDataFile() {
         return new File(getFilesDir(), "todo.txt");
     }
